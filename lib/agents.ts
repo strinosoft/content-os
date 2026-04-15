@@ -35,10 +35,6 @@ const NICHES = {
 
 async function callClaude(system: string, user: string): Promise<string> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
-  console.log("🔑 API KEY exists:", !!apiKey);
-  console.log("🔑 API KEY length:", apiKey?.length);
-  console.log("🔑 API KEY prefix:", apiKey?.substring(0, 15));
-
   const res = await fetch(ANTHROPIC_URL, {
     method: "POST",
     headers: {
@@ -53,13 +49,8 @@ async function callClaude(system: string, user: string): Promise<string> {
       messages: [{ role: "user", content: user }],
     }),
   });
-
   const data = await res.json();
-  console.log("📦 API response status:", res.status);
-  console.log("📦 API response type:", data.type);
-  if (data.error) {
-    console.error("❌ API error:", JSON.stringify(data.error));
-  }
+  if (data.error) console.error("❌ API error:", JSON.stringify(data.error));
   return data.content?.[0]?.text || "";
 }
 
@@ -77,7 +68,6 @@ export async function runContentPipeline(
 }> {
   const nicheConfig = NICHES[niche];
 
-  // Agent 1: Research
   const research = await callClaude(
     "You are a Research Agent specializing in " + nicheConfig.name + ". Find trending topics, pain points, and viral angles for " + nicheConfig.audience + ". Output bullet points only. Be specific with numbers and stats.",
     mode === "auto"
@@ -85,34 +75,32 @@ export async function runContentPipeline(
       : "Research this topic deeply: " + topic + ". Find angles, stats, pain points for " + nicheConfig.audience + "."
   );
 
-  // Agent 2: Strategy
   const strategy = await callClaude(
     "You are a Content Strategy Agent for " + platform + " content. You create viral content strategies for " + nicheConfig.audience + ". Output: hook idea, main angle, 3 talking points, CTA. Keep it punchy.",
     "Research: " + research + "\n\nPlatform: " + platform + "\nNiche: " + nicheConfig.name + "\nBrand: " + nicheConfig.brand + "\nTone: " + nicheConfig.tone + "\n\nCreate a content strategy. Focus on what makes " + platform + " content go viral."
   );
 
-  // Agent 3: Writer
   const platformInstructions: Record<string, string> = {
-    linkedin: "150-250 words, paragraph format, 2-3 emojis max, strong hook first line, end with question or CTA",
-    twitter: "5-7 tweets, numbered, each under 280 chars, hook tweet first, CTA last tweet",
-    instagram: "60-90 second spoken script in Hindi (Hinglish style). Use Hindi words like 'dekho', 'bhai', 'samjho', 'aapka AWS bill', 'paise bachao'. Mix with English technical terms. Punchy sentences. Add [PAUSE] for breaks.",
+    linkedin: "150-250 words, paragraph format, 2-3 emojis max, strong hook first line, plain text only no markdown, end with question or CTA",
+    twitter: "5-7 tweets, numbered, each under 280 chars, hook tweet first, CTA last tweet, plain text no markdown",
+    instagram: "60-90 second spoken Hinglish script (Hindi-English mix). Technical terms in English (AWS, EC2, cloud, cost, bill). Natural Hindi words: 'dekho bhai', 'matlab', 'toh samjho', 'aur kyunki', 'paise bachao', 'suno'. Talk like a friend. Short punchy sentences. Add [PAUSE] after key points. Start with a strong Hindi hook.",
   };
 
   const draft = await callClaude(
     "You are a Content Writer who writes like " + nicheConfig.tone + ". You write for " + nicheConfig.audience + " on " + platform + ". No fluff. No corporate speak. Sound like a real person.",
-    "Strategy: " + strategy + "\n\nWrite a complete " + platform + " post.\nFormat rules: " + platformInstructions[platform] + "\nBrand: " + nicheConfig.brand + "\n\nFor Instagram: write as a spoken video script (this will be read by AI avatar)."
+    "Strategy: " + strategy + "\n\nWrite a complete " + platform + " post.\nFormat rules: " + platformInstructions[platform] + "\nBrand: " + nicheConfig.brand + "\n\nFor Instagram: write as spoken Hinglish video script for AI avatar."
   );
 
-  // Agent 4: Editor
   const final = await callClaude(
     "You are an Editor Agent. Make content viral-ready. Sharpen hooks. Remove weak phrases. Sound authentic, not AI-generated. Return final content only.",
-    "Draft: " + draft + "\n\nPlatform: " + platform + "\n\nPolish this. Stronger hook. Better CTA. Remove any AI-sounding phrases. IMPORTANT: Return ONLY the post content itself. No markdown headers like ## LinkedIn Post. No markdown formatting like **bold** or *italic*. Plain text only. No labels. No commentary. Just the raw post text ready to publish." + (platform === "instagram" ? " Keep it as spoken script - natural speech flow." : "")
+    "Draft: " + draft + "\n\nPlatform: " + platform + "\n\nPolish this. Stronger hook. Better CTA. Remove AI-sounding phrases. Return ONLY raw content. No markdown headers. No bold or italic. Plain text only." + (platform === "instagram" ? " Keep as natural Hinglish spoken script." : "")
   );
 
-  // Agent 5: Video Script (for Instagram/HeyGen)
+  const videoScriptPrompt = "Clean this Hinglish video script for AI avatar: " + final + "\n\nRules:\n- Remove hashtags and emojis\n- Keep [PAUSE] markers\n- Keep Hinglish mix natural\n- Short punchy sentences\n- End with CTA: getinfradesk.com\n- Max 200 words\n\nReturn clean script only.";
+
   const videoScript = await callClaude(
-    "You are a Video Script Optimizer. Convert content into a clean spoken script for AI avatar video. Max 90 seconds when spoken (roughly 200-220 words). Natural speech, no special characters except [PAUSE].",
-    "Convert this to a clean video script: " + final + "\n\nRules:\n- Remove hashtags\n- Remove emojis\n- Add [PAUSE] for natural breaks\n- Keep sentences short\n- Conversational Hindi-English mix\n- End with clear CTA\n\nReturn script only."
+    "You are a Video Script Optimizer. Clean Hinglish scripts for AI avatar. Natural conversational speech. Max 200 words.",
+    videoScriptPrompt
   );
 
   return { research, strategy, draft, final, videoScript };

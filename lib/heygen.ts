@@ -1,6 +1,6 @@
 const HEYGEN_API_URL = "https://api.heygen.com";
-const AVATAR_ID = "a27f0288f68848cb99c70d6f48156e6a"; // Praveen's avatar
-const VOICE_ID = "3da0c2108b684d3f98db28ff4932786e"; // Praveen's cloned voice
+const AVATAR_ID = process.env.HEYGEN_AVATAR_ID || "a27f0288f68848cb99c70d6f48156e6a";
+const VOICE_ID = process.env.HEYGEN_VOICE_ID || "3da0c2108b684d3f98db28ff4932786e";
 
 export async function generateHeyGenVideo(script: string): Promise<string> {
   console.log("🎬 Creating HeyGen video...");
@@ -26,10 +26,11 @@ export async function generateHeyGenVideo(script: string): Promise<string> {
             input_text: script,
             voice_id: VOICE_ID,
             speed: 1.0,
+            language: "hi",
           },
           background: {
-          type: "color",
-          value: "#000000",
+            type: "color",
+            value: "#000000",
           },
         },
       ],
