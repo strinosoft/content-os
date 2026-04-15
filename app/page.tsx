@@ -71,6 +71,18 @@ export default function ContentOS() {
     return () => window.removeEventListener("message", handler);
   }, []);
 
+  // Reset content when language toggles — forces fresh generation
+  useEffect(() => {
+    if (selectedPlatform === "instagram") {
+      setFinalContent("");
+      setVideoScript("");
+      setVideoUrl("");
+      setPostStatus("idle");
+      setAgentOutputs({});
+      setAgentStatus({ research: "idle", strategy: "idle", writer: "idle", editor: "idle" });
+    }
+  }, [videoLanguage]);
+
   const exchangeLinkedInCode = async (code: string) => {
     const res = await fetch("/api/linkedin/token", {
       method: "POST",
@@ -110,12 +122,12 @@ export default function ContentOS() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-        niche: selectedNiche,
-        topic,
-        platform: selectedPlatform,
-        mode: selectedMode,
-        language: selectedPlatform === "instagram" ? videoLanguage : "english",
-      }),
+          niche: selectedNiche,
+          topic,
+          platform: selectedPlatform,
+          mode: selectedMode,
+          language: selectedPlatform === "instagram" ? videoLanguage : "english",
+        }),
       });
       const data = await res.json();
       if (!data.success) throw new Error(data.error || "Generation failed");
@@ -295,6 +307,8 @@ export default function ContentOS() {
 
         {/* Controls */}
         <div style={{ background: "#0d0d1a", border: "1px solid #1a1a2e", borderRadius: 12, padding: 20, marginBottom: 16 }}>
+
+          {/* Niche */}
           <div style={{ marginBottom: 18 }}>
             <label style={{ fontSize: 10, color: "#475569", display: "block", marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>Niche</label>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -311,6 +325,7 @@ export default function ContentOS() {
             </div>
           </div>
 
+          {/* Platform */}
           <div style={{ marginBottom: 18 }}>
             <label style={{ fontSize: 10, color: "#475569", display: "block", marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>Platform</label>
             <div style={{ display: "flex", gap: 8 }}>
@@ -330,7 +345,8 @@ export default function ContentOS() {
             </div>
           </div>
 
-          <div style={{ marginBottom: 18 }}>
+          {/* Mode */}
+          <div style={{ marginBottom: selectedPlatform === "instagram" ? 18 : 0 }}>
             <label style={{ fontSize: 10, color: "#475569", display: "block", marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>Mode</label>
             <div style={{ display: "flex", gap: 8 }}>
               {MODES.map(m => (
@@ -349,8 +365,45 @@ export default function ContentOS() {
             </div>
           </div>
 
+          {/* Language Toggle — Instagram only, inside controls */}
+          {selectedPlatform === "instagram" && (
+            <div style={{ marginBottom: selectedMode === "topic" ? 18 : 0 }}>
+              <label style={{ fontSize: 10, color: "#475569", display: "block", marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>
+                Video Language
+              </label>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button onClick={() => setVideoLanguage("hindi")} disabled={running}
+                  style={{
+                    padding: "7px 16px", borderRadius: 8, fontSize: 12,
+                    border: videoLanguage === "hindi" ? "1px solid #f97316" : "1px solid #1a1a2e",
+                    background: videoLanguage === "hindi" ? "#1c0900" : "#080810",
+                    color: videoLanguage === "hindi" ? "#f97316" : "#475569",
+                    fontWeight: videoLanguage === "hindi" ? 700 : 400,
+                  }}>
+                  🇮🇳 Hindi — ElevenLabs voice
+                </button>
+                <button onClick={() => setVideoLanguage("english")} disabled={running}
+                  style={{
+                    padding: "7px 16px", borderRadius: 8, fontSize: 12,
+                    border: videoLanguage === "english" ? "1px solid #06b6d4" : "1px solid #1a1a2e",
+                    background: videoLanguage === "english" ? "#0a1a1a" : "#080810",
+                    color: videoLanguage === "english" ? "#06b6d4" : "#475569",
+                    fontWeight: videoLanguage === "english" ? 700 : 400,
+                  }}>
+                  🇬🇧 English — HeyGen voice
+                </button>
+              </div>
+              <p style={{ fontSize: 10, color: "#334155", marginTop: 6 }}>
+                {videoLanguage === "hindi"
+                  ? "Hindi script + tumhari ElevenLabs voice"
+                  : "English script + tumhari HeyGen voice"}
+              </p>
+            </div>
+          )}
+
+          {/* Topic Input */}
           {selectedMode === "topic" && (
-            <div style={{ marginBottom: 4 }}>
+            <div>
               <label style={{ fontSize: 10, color: "#475569", display: "block", marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>Topic Idea</label>
               <input value={topic} onChange={e => setTopic(e.target.value)}
                 placeholder="e.g. EC2 idle instances waste kaise rokein..."
@@ -424,6 +477,11 @@ export default function ContentOS() {
                 <span style={{ color: "#16a34a" }}>✅</span>
                 <span style={{ fontWeight: 700, color: "#fff", fontSize: 14 }}>
                   {PLATFORMS.find(p => p.id === selectedPlatform)?.label} Content Ready
+                  {selectedPlatform === "instagram" && (
+                    <span style={{ fontSize: 10, color: videoLanguage === "hindi" ? "#f97316" : "#06b6d4", marginLeft: 8 }}>
+                      {videoLanguage === "hindi" ? "🇮🇳 Hindi" : "🇬🇧 English"}
+                    </span>
+                  )}
                 </span>
               </div>
               <div style={{ display: "flex", gap: 8 }}>
@@ -465,53 +523,22 @@ export default function ContentOS() {
         {/* Video Section — Instagram only */}
         {finalContent && selectedPlatform === "instagram" && (
           <div style={{ background: "#0d0d1a", border: "1px solid #8b5cf6", borderRadius: 12, padding: 20, animation: "fadeUp 0.4s ease" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14, flexWrap: "wrap", gap: 10 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
               <div>
                 <p style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>🎬 Reel Video</p>
-                <p style={{ fontSize: 11, color: "#475569" }}>Avatar video generate karo</p>
+                <p style={{ fontSize: 11, color: "#475569" }}>
+                  {videoLanguage === "hindi" ? "ElevenLabs Hindi voice + HeyGen avatar" : "HeyGen English voice + avatar"}
+                </p>
               </div>
-              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                {/* Language Toggle */}
-                <button onClick={() => setVideoLanguage("hindi")} disabled={generatingVideo}
-                  style={{
-                    padding: "6px 12px", borderRadius: 6, fontSize: 11, fontFamily: "inherit",
-                    background: videoLanguage === "hindi" ? "#f97316" : "#18181b",
-                    border: videoLanguage === "hindi" ? "1px solid #f97316" : "1px solid #3f3f46",
-                    color: videoLanguage === "hindi" ? "#fff" : "#71717a",
-                    fontWeight: videoLanguage === "hindi" ? 700 : 400,
-                  }}>
-                  🇮🇳 Hindi
-                </button>
-                <button onClick={() => setVideoLanguage("english")} disabled={generatingVideo}
-                  style={{
-                    padding: "6px 12px", borderRadius: 6, fontSize: 11, fontFamily: "inherit",
-                    background: videoLanguage === "english" ? "#06b6d4" : "#18181b",
-                    border: videoLanguage === "english" ? "1px solid #06b6d4" : "1px solid #3f3f46",
-                    color: videoLanguage === "english" ? "#fff" : "#71717a",
-                    fontWeight: videoLanguage === "english" ? 700 : 400,
-                  }}>
-                  🇬🇧 English
-                </button>
-                {/* Generate Button */}
-                <button onClick={handleGenerateVideo} disabled={generatingVideo}
-                  style={{
-                    padding: "8px 16px", borderRadius: 8, fontSize: 12, fontWeight: 700,
-                    background: generatingVideo ? "#1a1a2e" : "#8b5cf6",
-                    border: "none", color: "#fff",
-                    display: "flex", alignItems: "center", gap: 6,
-                  }}>
-                  {generatingVideo ? <><Spinner /> Generating... (2-5 min)</> : "🎬 Generate Video"}
-                </button>
-              </div>
-            </div>
-
-            {/* Language info */}
-            <div style={{ marginBottom: 12, padding: "8px 12px", background: "#080810", borderRadius: 7, border: "1px solid #1a1a2e" }}>
-              <p style={{ fontSize: 11, color: "#64748b" }}>
-                {videoLanguage === "hindi"
-                  ? "🇮🇳 Hindi mode — ElevenLabs se tumhari Hindi voice + HeyGen avatar"
-                  : "🇬🇧 English mode — HeyGen se tumhari English voice + avatar"}
-              </p>
+              <button onClick={handleGenerateVideo} disabled={generatingVideo}
+                style={{
+                  padding: "8px 16px", borderRadius: 8, fontSize: 12, fontWeight: 700,
+                  background: generatingVideo ? "#1a1a2e" : "#8b5cf6",
+                  border: "none", color: "#fff",
+                  display: "flex", alignItems: "center", gap: 6,
+                }}>
+                {generatingVideo ? <><Spinner /> Generating... (2-5 min)</> : "🎬 Generate Video"}
+              </button>
             </div>
 
             {videoScript && (
