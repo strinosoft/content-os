@@ -148,42 +148,41 @@ export default function ContentOS() {
   if (!videoScript) return;
   setGeneratingVideo(true);
   setError("");
+  let finalVideoUrl = "";
 
   try {
-    // Step 1: Create video
     const res = await fetch("/api/video/generate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ script: videoScript }),
     });
     const data = await res.json();
-
     if (!data.videoId) throw new Error(data.error || "Failed to start video");
 
     const videoId = data.videoId;
-
-    // Step 2: Poll every 10 seconds
     let attempts = 0;
-    while (attempts < 30) {
-      await new Promise(r => setTimeout(r, 10000));
+
+    while (attempts < 40) {
+      await new Promise(r => setTimeout(r, 15000));
       const statusRes = await fetch("/api/video/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "check", videoId }),
       });
       const statusData = await statusRes.json();
+      console.log("Poll attempt", attempts, statusData.status);
 
-      if (statusData.success && statusData.videoUrl) {
+      if (statusData.status === "completed" && statusData.videoUrl) {
+        finalVideoUrl = statusData.videoUrl;
         setVideoUrl(statusData.videoUrl);
-        setGeneratingVideo(false);
-        return;
+        break;
       } else if (statusData.status === "failed") {
         throw new Error("HeyGen video failed");
       }
       attempts++;
     }
 
-    if (attempts >= 30) throw new Error("Video took too long - check HeyGen dashboard");
+    if (!finalVideoUrl) throw new Error("Video took too long - check HeyGen dashboard");
 
   } catch (e: any) {
     setError("Video generation failed: " + e.message);

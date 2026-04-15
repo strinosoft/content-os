@@ -28,9 +28,8 @@ export async function generateHeyGenVideo(script: string): Promise<string> {
             speed: 1.0,
           },
           background: {
-            type: "color",
-            value: "#1a1a2e",
-          },
+          type: "blur",
+         },
         },
       ],
       dimension: {
