@@ -30,11 +30,7 @@ const AGENTS = [
 
 function Spinner() {
   return (
-    <svg
-      style={{ animation: "spin 1s linear infinite", width: 14, height: 14 }}
-      viewBox="0 0 24 24"
-      fill="none"
-    >
+    <svg style={{ animation: "spin 1s linear infinite", width: 14, height: 14 }} viewBox="0 0 24 24" fill="none">
       <circle cx="12" cy="12" r="10" stroke="#f97316" strokeWidth="4" strokeOpacity="0.25" />
       <path fill="#f97316" d="M4 12a8 8 0 018-8v8z" />
     </svg>
@@ -55,6 +51,7 @@ export default function ContentOS() {
   const [videoScript, setVideoScript] = useState("");
   const [videoUrl, setVideoUrl] = useState("");
   const [generatingVideo, setGeneratingVideo] = useState(false);
+  const [videoLanguage, setVideoLanguage] = useState<"hindi" | "english">("hindi");
   const [posting, setPosting] = useState(false);
   const [postStatus, setPostStatus] = useState<"idle" | "success" | "error">("idle");
   const [liToken, setLiToken] = useState<string | null>(null);
@@ -68,9 +65,7 @@ export default function ContentOS() {
     const token = sessionStorage.getItem("li_access_token");
     if (token) setLiToken(token);
     const handler = (e: MessageEvent) => {
-      if (e.data?.type === "LINKEDIN_AUTH_CODE") {
-        exchangeLinkedInCode(e.data.code);
-      }
+      if (e.data?.type === "LINKEDIN_AUTH_CODE") exchangeLinkedInCode(e.data.code);
     };
     window.addEventListener("message", handler);
     return () => window.removeEventListener("message", handler);
@@ -80,10 +75,7 @@ export default function ContentOS() {
     const res = await fetch("/api/linkedin/token", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        code,
-        redirect_uri: `${APP_URL}/api/linkedin/callback`,
-      }),
+      body: JSON.stringify({ code, redirect_uri: `${APP_URL}/api/linkedin/callback` }),
     });
     const data = await res.json();
     if (data.access_token) {
@@ -117,12 +109,7 @@ export default function ContentOS() {
       const res = await fetch("/api/content/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          niche: selectedNiche,
-          topic,
-          platform: selectedPlatform,
-          mode: selectedMode,
-        }),
+        body: JSON.stringify({ niche: selectedNiche, topic, platform: selectedPlatform, mode: selectedMode }),
       });
       const data = await res.json();
       if (!data.success) throw new Error(data.error || "Generation failed");
@@ -145,51 +132,51 @@ export default function ContentOS() {
   };
 
   const handleGenerateVideo = async () => {
-  if (!videoScript) return;
-  setGeneratingVideo(true);
-  setError("");
-  let finalVideoUrl = "";
+    if (!videoScript) return;
+    setGeneratingVideo(true);
+    setError("");
+    let finalVideoUrl = "";
 
-  try {
-    const res = await fetch("/api/video/generate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ script: videoScript }),
-    });
-    const data = await res.json();
-    if (!data.videoId) throw new Error(data.error || "Failed to start video");
-
-    const videoId = data.videoId;
-    let attempts = 0;
-
-    while (attempts < 40) {
-      await new Promise(r => setTimeout(r, 15000));
-      const statusRes = await fetch("/api/video/generate", {
+    try {
+      const res = await fetch("/api/video/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "check", videoId }),
+        body: JSON.stringify({ script: videoScript, language: videoLanguage }),
       });
-      const statusData = await statusRes.json();
-      console.log("Poll attempt", attempts, statusData.status);
+      const data = await res.json();
+      if (!data.videoId) throw new Error(data.error || "Failed to start video");
 
-      if (statusData.status === "completed" && statusData.videoUrl) {
-        finalVideoUrl = statusData.videoUrl;
-        setVideoUrl(statusData.videoUrl);
-        break;
-      } else if (statusData.status === "failed") {
-        throw new Error("HeyGen video failed");
+      const videoId = data.videoId;
+      let attempts = 0;
+
+      while (attempts < 40) {
+        await new Promise(r => setTimeout(r, 15000));
+        const statusRes = await fetch("/api/video/generate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "check", videoId }),
+        });
+        const statusData = await statusRes.json();
+        console.log("Poll attempt", attempts, statusData.status);
+
+        if (statusData.status === "completed" && statusData.videoUrl) {
+          finalVideoUrl = statusData.videoUrl;
+          setVideoUrl(statusData.videoUrl);
+          break;
+        } else if (statusData.status === "failed") {
+          throw new Error("HeyGen video failed");
+        }
+        attempts++;
       }
-      attempts++;
+
+      if (!finalVideoUrl) throw new Error("Video took too long - check HeyGen dashboard");
+
+    } catch (e: any) {
+      setError("Video generation failed: " + e.message);
     }
 
-    if (!finalVideoUrl) throw new Error("Video took too long - check HeyGen dashboard");
-
-  } catch (e: any) {
-    setError("Video generation failed: " + e.message);
-  }
-
-  setGeneratingVideo(false);
-};
+    setGeneratingVideo(false);
+  };
 
   const handlePost = async () => {
     if (!finalContent) return;
@@ -207,11 +194,7 @@ export default function ContentOS() {
         if (data.success) setPostStatus("success");
         else throw new Error(data.error);
       } else if (selectedPlatform === "linkedin") {
-        if (!liToken) {
-          connectLinkedIn();
-          setPosting(false);
-          return;
-        }
+        if (!liToken) { connectLinkedIn(); setPosting(false); return; }
         const res = await fetch("/api/linkedin/post", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -221,18 +204,11 @@ export default function ContentOS() {
         if (data.success) setPostStatus("success");
         else throw new Error(data.error);
       } else if (selectedPlatform === "instagram") {
-        if (!videoUrl) {
-          setError("Pehle video generate karo!");
-          setPosting(false);
-          return;
-        }
+        if (!videoUrl) { setError("Pehle video generate karo!"); setPosting(false); return; }
         const res = await fetch("/api/post/instagram", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            caption: finalContent,
-            videoUrl: videoUrl,
-          }),
+          body: JSON.stringify({ caption: finalContent, videoUrl }),
         });
         const data = await res.json();
         if (data.success) setPostStatus("success");
@@ -252,13 +228,7 @@ export default function ContentOS() {
   };
 
   return (
-    <div style={{
-      fontFamily: "'IBM Plex Mono', monospace",
-      background: "#080810",
-      minHeight: "100vh",
-      color: "#e2e8f0",
-      padding: "32px 16px",
-    }}>
+    <div style={{ fontFamily: "'IBM Plex Mono', monospace", background: "#080810", minHeight: "100vh", color: "#e2e8f0", padding: "32px 16px" }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap');
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -330,9 +300,7 @@ export default function ContentOS() {
                     background: selectedNiche === n.id ? `${n.color}15` : "#080810",
                     color: selectedNiche === n.id ? n.color : "#475569",
                     fontWeight: selectedNiche === n.id ? 700 : 400,
-                  }}>
-                  {n.label}
-                </button>
+                  }}>{n.label}</button>
               ))}
             </div>
           </div>
@@ -378,16 +346,10 @@ export default function ContentOS() {
           {selectedMode === "topic" && (
             <div style={{ marginBottom: 4 }}>
               <label style={{ fontSize: 10, color: "#475569", display: "block", marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>Topic Idea</label>
-              <input
-                value={topic}
-                onChange={e => setTopic(e.target.value)}
+              <input value={topic} onChange={e => setTopic(e.target.value)}
                 placeholder="e.g. EC2 idle instances waste kaise rokein..."
                 disabled={running}
-                style={{
-                  width: "100%", background: "#080810", border: "1px solid #1a1a2e",
-                  borderRadius: 8, padding: "10px 14px", color: "#e2e8f0",
-                  fontSize: 12, transition: "border-color 0.2s",
-                }}
+                style={{ width: "100%", background: "#080810", border: "1px solid #1a1a2e", borderRadius: 8, padding: "10px 14px", color: "#e2e8f0", fontSize: 12, transition: "border-color 0.2s" }}
               />
             </div>
           )}
@@ -432,11 +394,7 @@ export default function ContentOS() {
                   </div>
                 </div>
                 {agentOutputs[agent.id] && (
-                  <div style={{
-                    fontSize: 10, color: "#64748b", background: "#080810",
-                    borderRadius: 6, padding: "6px 8px", maxHeight: 80,
-                    overflowY: "auto", whiteSpace: "pre-wrap", lineHeight: 1.6,
-                  }}>
+                  <div style={{ fontSize: 10, color: "#64748b", background: "#080810", borderRadius: 6, padding: "6px 8px", maxHeight: 80, overflowY: "auto", whiteSpace: "pre-wrap", lineHeight: 1.6 }}>
                     {agentOutputs[agent.id].slice(0, 200)}...
                   </div>
                 )}
@@ -486,16 +444,8 @@ export default function ContentOS() {
               </div>
             </div>
 
-            <textarea
-              value={finalContent}
-              onChange={e => setFinalContent(e.target.value)}
-              rows={10}
-              style={{
-                width: "100%", background: "#080810", border: "1px solid #1a1a2e",
-                borderRadius: 8, padding: 14, color: "#d4d4d8",
-                fontSize: 12, lineHeight: 1.8, resize: "vertical",
-                transition: "border-color 0.2s",
-              }}
+            <textarea value={finalContent} onChange={e => setFinalContent(e.target.value)} rows={10}
+              style={{ width: "100%", background: "#080810", border: "1px solid #1a1a2e", borderRadius: 8, padding: 14, color: "#d4d4d8", fontSize: 12, lineHeight: 1.8, resize: "vertical", transition: "border-color 0.2s" }}
             />
 
             {postStatus === "success" && (
@@ -509,34 +459,60 @@ export default function ContentOS() {
         {/* Video Section — Instagram only */}
         {finalContent && selectedPlatform === "instagram" && (
           <div style={{ background: "#0d0d1a", border: "1px solid #8b5cf6", borderRadius: 12, padding: 20, animation: "fadeUp 0.4s ease" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14, flexWrap: "wrap", gap: 10 }}>
               <div>
                 <p style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>🎬 Reel Video</p>
-                <p style={{ fontSize: 11, color: "#475569" }}>HeyGen avatar video generate karo</p>
+                <p style={{ fontSize: 11, color: "#475569" }}>Avatar video generate karo</p>
               </div>
-              <button onClick={handleGenerateVideo} disabled={generatingVideo}
-                style={{
-                  padding: "8px 18px", borderRadius: 8, fontSize: 12, fontWeight: 700,
-                  background: generatingVideo ? "#1a1a2e" : "#8b5cf6",
-                  border: "none", color: "#fff",
-                  display: "flex", alignItems: "center", gap: 6,
-                }}>
-                {generatingVideo ? <><Spinner /> Generating... (2-5 min)</> : "🎬 Generate Video"}
-              </button>
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                {/* Language Toggle */}
+                <button onClick={() => setVideoLanguage("hindi")} disabled={generatingVideo}
+                  style={{
+                    padding: "6px 12px", borderRadius: 6, fontSize: 11, fontFamily: "inherit",
+                    background: videoLanguage === "hindi" ? "#f97316" : "#18181b",
+                    border: videoLanguage === "hindi" ? "1px solid #f97316" : "1px solid #3f3f46",
+                    color: videoLanguage === "hindi" ? "#fff" : "#71717a",
+                    fontWeight: videoLanguage === "hindi" ? 700 : 400,
+                  }}>
+                  🇮🇳 Hindi
+                </button>
+                <button onClick={() => setVideoLanguage("english")} disabled={generatingVideo}
+                  style={{
+                    padding: "6px 12px", borderRadius: 6, fontSize: 11, fontFamily: "inherit",
+                    background: videoLanguage === "english" ? "#06b6d4" : "#18181b",
+                    border: videoLanguage === "english" ? "1px solid #06b6d4" : "1px solid #3f3f46",
+                    color: videoLanguage === "english" ? "#fff" : "#71717a",
+                    fontWeight: videoLanguage === "english" ? 700 : 400,
+                  }}>
+                  🇬🇧 English
+                </button>
+                {/* Generate Button */}
+                <button onClick={handleGenerateVideo} disabled={generatingVideo}
+                  style={{
+                    padding: "8px 16px", borderRadius: 8, fontSize: 12, fontWeight: 700,
+                    background: generatingVideo ? "#1a1a2e" : "#8b5cf6",
+                    border: "none", color: "#fff",
+                    display: "flex", alignItems: "center", gap: 6,
+                  }}>
+                  {generatingVideo ? <><Spinner /> Generating... (2-5 min)</> : "🎬 Generate Video"}
+                </button>
+              </div>
+            </div>
+
+            {/* Language info */}
+            <div style={{ marginBottom: 12, padding: "8px 12px", background: "#080810", borderRadius: 7, border: "1px solid #1a1a2e" }}>
+              <p style={{ fontSize: 11, color: "#64748b" }}>
+                {videoLanguage === "hindi"
+                  ? "🇮🇳 Hindi mode — ElevenLabs se tumhari Hindi voice + HeyGen avatar"
+                  : "🇬🇧 English mode — HeyGen se tumhari English voice + avatar"}
+              </p>
             </div>
 
             {videoScript && (
               <div style={{ marginBottom: 14 }}>
                 <p style={{ fontSize: 10, color: "#475569", marginBottom: 6, textTransform: "uppercase", letterSpacing: 1 }}>Video Script</p>
-                <textarea
-                  value={videoScript}
-                  onChange={e => setVideoScript(e.target.value)}
-                  rows={6}
-                  style={{
-                    width: "100%", background: "#080810", border: "1px solid #1a1a2e",
-                    borderRadius: 8, padding: 12, color: "#d4d4d8",
-                    fontSize: 11, lineHeight: 1.8, resize: "vertical",
-                  }}
+                <textarea value={videoScript} onChange={e => setVideoScript(e.target.value)} rows={6}
+                  style={{ width: "100%", background: "#080810", border: "1px solid #1a1a2e", borderRadius: 8, padding: 12, color: "#d4d4d8", fontSize: 11, lineHeight: 1.8, resize: "vertical" }}
                 />
               </div>
             )}
@@ -557,7 +533,7 @@ export default function ContentOS() {
         )}
 
         <p style={{ textAlign: "center", color: "#1e293b", fontSize: 10, marginTop: 28 }}>
-          Content OS · Strinosoft · Powered by Claude + HeyGen
+          Content OS · Strinosoft · Powered by Claude + HeyGen + ElevenLabs
         </p>
       </div>
     </div>

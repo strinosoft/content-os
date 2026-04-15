@@ -1,10 +1,17 @@
 import { NextResponse } from "next/server";
-import { generateHeyGenVideo, checkHeyGenVideoStatus } from "@/lib/heygen";
+import {
+  generateHeyGenVideo,
+  generateHeyGenVideoWithAudio,
+  checkHeyGenVideoStatus,
+} from "@/lib/heygen";
+import { generateHindiAudio } from "@/lib/elevenlabs";
+import { uploadToS3 } from "@/lib/s3";
 
 export async function POST(req: Request) {
   try {
-    const { script, action, videoId } = await req.json();
+    const { script, action, videoId, language } = await req.json();
 
+    // Check status
     if (action === "check" && videoId) {
       const result = await checkHeyGenVideoStatus(videoId);
       return NextResponse.json({
@@ -15,10 +22,36 @@ export async function POST(req: Request) {
     }
 
     if (!script) {
-      return NextResponse.json({ error: "Script is required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Script is required" },
+        { status: 400 }
+      );
     }
 
-    const newVideoId = await generateHeyGenVideo(script);
+    let newVideoId = "";
+
+    if (language === "hindi") {
+      // Hindi: ElevenLabs audio + HeyGen avatar
+      console.log("🇮🇳 Hindi mode: ElevenLabs + HeyGen");
+
+      // Step 1: Generate Hindi audio
+      const audioBuffer = await generateHindiAudio(script);
+
+      // Step 2: Upload audio to S3
+      const audioUrl = await uploadToS3(
+        audioBuffer,
+        `hindi-audio-${Date.now()}.mp3`,
+        "audio/mpeg"
+      );
+      console.log("✅ Audio uploaded:", audioUrl);
+
+      // Step 3: HeyGen video with audio
+      newVideoId = await generateHeyGenVideoWithAudio(audioUrl);
+    } else {
+      // English: HeyGen direct
+      console.log("🇬🇧 English mode: HeyGen direct");
+      newVideoId = await generateHeyGenVideo(script);
+    }
 
     return NextResponse.json({
       success: true,
