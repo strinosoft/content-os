@@ -3,7 +3,8 @@ import { runContentPipeline } from "@/lib/agents";
 
 export async function POST(req: Request) {
   try {
-    const { niche, topic, platform, mode } = await req.json();
+   const { niche, topic, platform, mode, language } = await req.json();
+   const videoLanguage: "hindi" | "english" = language === "hindi" ? "hindi" : "english";
 
     if (!niche || !platform) {
       return NextResponse.json(
@@ -14,11 +15,12 @@ export async function POST(req: Request) {
 
     console.log(`🤖 Running ${platform} content pipeline for niche: ${niche}`);
 
-    const result = await runContentPipeline(
-      niche,
-      topic || "",
-      platform,
-      mode || "auto"
+   const result = await runContentPipeline(
+    niche,
+    topic || "",
+    platform,
+    mode || "auto",
+    videoLanguage
     );
 
     return NextResponse.json({

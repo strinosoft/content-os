@@ -109,7 +109,13 @@ export default function ContentOS() {
       const res = await fetch("/api/content/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ niche: selectedNiche, topic, platform: selectedPlatform, mode: selectedMode }),
+        body: JSON.stringify({
+        niche: selectedNiche,
+        topic,
+        platform: selectedPlatform,
+        mode: selectedMode,
+        language: selectedPlatform === "instagram" ? videoLanguage : "english",
+      }),
       });
       const data = await res.json();
       if (!data.success) throw new Error(data.error || "Generation failed");
