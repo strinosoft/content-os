@@ -95,7 +95,7 @@ export async function runContentPipeline(
   const platformInstructions: Record<string, string> = {
     linkedin: "150-250 words, paragraph format, 2-3 emojis max, strong hook first line, end with question or CTA",
     twitter: "5-7 tweets, numbered, each under 280 chars, hook tweet first, CTA last tweet",
-    instagram: "60-90 second spoken script, conversational Hindi-English mix, punchy sentences, pause indicators [PAUSE]",
+    instagram: "60-90 second spoken script in Hindi (Hinglish style). Use Hindi words like 'dekho', 'bhai', 'samjho', 'aapka AWS bill', 'paise bachao'. Mix with English technical terms. Punchy sentences. Add [PAUSE] for breaks.",
   };
 
   const draft = await callClaude(
