@@ -34,21 +34,32 @@ const NICHES = {
 };
 
 async function callClaude(system: string, user: string): Promise<string> {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  console.log("🔑 API KEY exists:", !!apiKey);
+  console.log("🔑 API KEY length:", apiKey?.length);
+  console.log("🔑 API KEY prefix:", apiKey?.substring(0, 15));
+
   const res = await fetch(ANTHROPIC_URL, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "x-api-key": process.env.ANTHROPIC_API_KEY!,
+      "x-api-key": apiKey || "",
       "anthropic-version": "2023-06-01",
     },
     body: JSON.stringify({
-      model: "claude-sonnet-4-5",
+      model: "claude-haiku-4-5-20251001",
       max_tokens: 1500,
       system,
       messages: [{ role: "user", content: user }],
     }),
   });
+
   const data = await res.json();
+  console.log("📦 API response status:", res.status);
+  console.log("📦 API response type:", data.type);
+  if (data.error) {
+    console.error("❌ API error:", JSON.stringify(data.error));
+  }
   return data.content?.[0]?.text || "";
 }
 
