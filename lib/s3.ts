@@ -21,7 +21,6 @@ export async function uploadToS3(
       Key: key,
       Body: buffer,
       ContentType: contentType,
-      ACL: "public-read",
     })
   );
 
