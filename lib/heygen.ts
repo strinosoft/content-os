@@ -3,7 +3,7 @@ const HEYGEN_API_URL = "https://api.heygen.com";
 export async function generateHeyGenVideo(
   script: string,
   avatarId: string = "a27f0288f68848cb99c70d6f48156e6a",
-  voiceId: string = "2d5b0e6cf36f460aa7fc47e3eee4ba54" // Hindi female voice
+  voiceId: string = "e0762e0148224d30b5455a07fac7081a"
 ): Promise<string> {
   // Step 1: Create video
   const createRes = await fetch(`${HEYGEN_API_URL}/v2/video/generate`, {

@@ -175,14 +175,15 @@ export default function ContentOS() {
 
       if (statusData.success && statusData.videoUrl) {
         setVideoUrl(statusData.videoUrl);
-        break;
+        setGeneratingVideo(false);
+        return;
       } else if (statusData.status === "failed") {
         throw new Error("HeyGen video failed");
       }
       attempts++;
     }
 
-    if (!videoUrl) throw new Error("Video timeout");
+    if (attempts >= 30) throw new Error("Video took too long - check HeyGen dashboard");
 
   } catch (e: any) {
     setError("Video generation failed: " + e.message);
