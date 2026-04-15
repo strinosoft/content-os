@@ -1,55 +1,67 @@
 import { NextResponse } from "next/server";
 import { generateHeyGenVideo } from "@/lib/heygen";
-import { uploadToS3 } from "@/lib/s3";
 
 export async function POST(req: Request) {
   try {
-    const { script, avatarId, voiceId } = await req.json();
+    const { script, avatarId, voiceId, action, videoId } = await req.json();
 
-    if (!script) {
-      return NextResponse.json(
-        { error: "Script is required" },
-        { status: 400 }
+    // Step 2: Check status
+    if (action === "check" && videoId) {
+      const statusRes = await fetch(
+        `https://api.heygen.com/v1/video_status.get?video_id=${videoId}`,
+        { headers: { "X-Api-Key": process.env.HEYGEN_API_KEY! } }
       );
+      const statusData = await statusRes.json();
+      const status = statusData.data?.status;
+      const videoUrl = statusData.data?.video_url;
+
+      return NextResponse.json({
+        status,
+        videoUrl: videoUrl || null,
+        success: status === "completed",
+      });
     }
 
-    console.log("🎬 Starting HeyGen video generation...");
+    // Step 1: Create video only
+    const createRes = await fetch("https://api.heygen.com/v2/video/generate", {
+      method: "POST",
+      headers: {
+        "X-Api-Key": process.env.HEYGEN_API_KEY!,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        video_inputs: [{
+          character: {
+            type: "avatar",
+            avatar_id: avatarId || "a27f0288f68848cb99c70d6f48156e6a",
+            avatar_style: "normal",
+          },
+          voice: {
+            type: "text",
+            input_text: script,
+            voice_id: voiceId || "2d5b0e6cf36f460aa7fc47e3eee4ba54",
+            speed: 1.0,
+          },
+          background: { type: "color", value: "#0a0a0a" },
+        }],
+        dimension: { width: 1080, height: 1920 },
+        aspect_ratio: "9:16",
+      }),
+    });
 
-    // Step 1: Generate video via HeyGen
-    const heygenVideoUrl = await generateHeyGenVideo(
-      script,
-      avatarId,
-      voiceId
-    );
+    const createData = await createRes.json();
 
-    console.log("✅ HeyGen video ready:", heygenVideoUrl);
-
-    // Step 2: Download video from HeyGen
-    const videoRes = await fetch(heygenVideoUrl);
-    if (!videoRes.ok) {
-      throw new Error("Failed to download video from HeyGen");
+    if (!createData.data?.video_id) {
+      throw new Error("HeyGen video creation failed: " + JSON.stringify(createData));
     }
-
-    const videoBuffer = Buffer.from(await videoRes.arrayBuffer());
-
-    console.log("⬆️ Uploading to S3...");
-
-    // Step 3: Upload to S3
-    const s3Url = await uploadToS3(
-      videoBuffer,
-      `reel-${Date.now()}.mp4`,
-      "video/mp4"
-    );
-
-    console.log("✅ Video uploaded to S3:", s3Url);
 
     return NextResponse.json({
       success: true,
-      videoUrl: s3Url,
-      heygenUrl: heygenVideoUrl,
+      videoId: createData.data.video_id,
+      status: "processing",
     });
+
   } catch (error: any) {
-    console.error("Video generation error:", error);
     return NextResponse.json(
       { error: error.message || "Video generation failed" },
       { status: 500 }
@@ -57,5 +69,4 @@ export async function POST(req: Request) {
   }
 }
 
-// Long timeout — HeyGen takes 2-5 mins
-export const maxDuration = 300;
+export const maxDuration = 60;
