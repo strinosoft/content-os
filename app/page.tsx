@@ -67,7 +67,6 @@ export default function ContentOS() {
   useEffect(() => {
     const token = sessionStorage.getItem("li_access_token");
     if (token) setLiToken(token);
-
     const handler = (e: MessageEvent) => {
       if (e.data?.type === "LINKEDIN_AUTH_CODE") {
         exchangeLinkedInCode(e.data.code);
@@ -112,14 +111,9 @@ export default function ContentOS() {
     setPostStatus("idle");
     setAgentOutputs({});
     setAgentStatus({ research: "idle", strategy: "idle", writer: "idle", editor: "idle" });
-
-    // Animate agents sequentially
     const agentOrder = ["research", "strategy", "writer", "editor"];
-    
     try {
-      // Start research agent animation
       setAgentStatus(s => ({ ...s, research: "running" }));
-
       const res = await fetch("/api/content/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -130,34 +124,23 @@ export default function ContentOS() {
           mode: selectedMode,
         }),
       });
-
       const data = await res.json();
-
-      if (!data.success) {
-        throw new Error(data.error || "Generation failed");
-      }
-
-      // Animate agent completions
+      if (!data.success) throw new Error(data.error || "Generation failed");
       for (let i = 0; i < agentOrder.length; i++) {
         const agent = agentOrder[i];
         setAgentStatus(s => ({ ...s, [agent]: "done" }));
-        setAgentOutputs(o => ({
-          ...o,
-          [agent]: data[agent] || "",
-        }));
+        setAgentOutputs(o => ({ ...o, [agent]: data[agent] || "" }));
         if (i < agentOrder.length - 1) {
           await new Promise(r => setTimeout(r, 400));
           setAgentStatus(s => ({ ...s, [agentOrder[i + 1]]: "running" }));
         }
       }
-
       setFinalContent(data.final);
       setVideoScript(data.videoScript);
     } catch (e: any) {
       setError(e.message || "Something went wrong");
       setAgentStatus({ research: "idle", strategy: "idle", writer: "idle", editor: "idle" });
     }
-
     setRunning(false);
   };
 
@@ -165,7 +148,6 @@ export default function ContentOS() {
     if (!videoScript) return;
     setGeneratingVideo(true);
     setError("");
-
     try {
       const res = await fetch("/api/video/generate", {
         method: "POST",
@@ -181,7 +163,6 @@ export default function ContentOS() {
     } catch (e: any) {
       setError("Video generation failed: " + e.message);
     }
-
     setGeneratingVideo(false);
   };
 
@@ -190,7 +171,6 @@ export default function ContentOS() {
     setPosting(true);
     setPostStatus("idle");
     setError("");
-
     try {
       if (selectedPlatform === "twitter") {
         const res = await fetch("/api/post/twitter", {
@@ -215,7 +195,7 @@ export default function ContentOS() {
         const data = await res.json();
         if (data.success) setPostStatus("success");
         else throw new Error(data.error);
-     } else if (selectedPlatform === "instagram") {
+      } else if (selectedPlatform === "instagram") {
         if (!videoUrl) {
           setError("Pehle video generate karo!");
           setPosting(false);
@@ -230,22 +210,13 @@ export default function ContentOS() {
           }),
         });
         const data = await res.json();
-        if (data.success) {
-          setPostStatus("success");
-        } else {
-          throw new Error(data.error);
-        }
-      }
-        // Instagram post logic (requires Meta API setup)
-        setError("Instagram posting coming soon — Meta app review pending");
-        setPosting(false);
-        return;
+        if (data.success) setPostStatus("success");
+        else throw new Error(data.error);
       }
     } catch (e: any) {
       setError(e.message);
       setPostStatus("error");
     }
-
     setPosting(false);
   };
 
@@ -254,8 +225,6 @@ export default function ContentOS() {
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
-
-  const niche = NICHES.find(n => n.id === selectedNiche)!;
 
   return (
     <div style={{
@@ -286,16 +255,10 @@ export default function ContentOS() {
         <div style={{ marginBottom: 28 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
             <span>⚡</span>
-            <h1 style={{ fontSize: 20, fontWeight: 700, color: "#fff", letterSpacing: "-0.5px" }}>
-              Content OS
-            </h1>
-            <span style={{ background: "#1c1917", border: "1px solid #292524", borderRadius: 5, padding: "2px 8px", fontSize: 10, color: "#a8a29e" }}>
-              by Strinosoft
-            </span>
+            <h1 style={{ fontSize: 20, fontWeight: 700, color: "#fff", letterSpacing: "-0.5px" }}>Content OS</h1>
+            <span style={{ background: "#1c1917", border: "1px solid #292524", borderRadius: 5, padding: "2px 8px", fontSize: 10, color: "#a8a29e" }}>by Strinosoft</span>
           </div>
-          <p style={{ color: "#475569", fontSize: 12 }}>
-            Niche select karo → Content generate karo → Auto-post karo
-          </p>
+          <p style={{ color: "#475569", fontSize: 12 }}>Niche select karo → Content generate karo → Auto-post karo</p>
         </div>
 
         {/* LinkedIn Connect */}
@@ -312,9 +275,7 @@ export default function ContentOS() {
                 <p style={{ fontSize: 12, fontWeight: 600, color: liToken ? "#4ade80" : "#93c5fd" }}>
                   {liToken ? "✓ LinkedIn Connected" : "Connect LinkedIn"}
                 </p>
-                <p style={{ fontSize: 11, color: "#334155" }}>
-                  {liToken ? "Direct post enabled" : "Required for auto-post"}
-                </p>
+                <p style={{ fontSize: 11, color: "#334155" }}>{liToken ? "Direct post enabled" : "Required for auto-post"}</p>
               </div>
             </div>
             {liToken ? (
@@ -333,12 +294,8 @@ export default function ContentOS() {
 
         {/* Controls */}
         <div style={{ background: "#0d0d1a", border: "1px solid #1a1a2e", borderRadius: 12, padding: 20, marginBottom: 16 }}>
-
-          {/* Niche */}
           <div style={{ marginBottom: 18 }}>
-            <label style={{ fontSize: 10, color: "#475569", display: "block", marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>
-              Niche
-            </label>
+            <label style={{ fontSize: 10, color: "#475569", display: "block", marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>Niche</label>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               {NICHES.map(n => (
                 <button key={n.id} onClick={() => setSelectedNiche(n.id)} disabled={running}
@@ -355,11 +312,8 @@ export default function ContentOS() {
             </div>
           </div>
 
-          {/* Platform */}
           <div style={{ marginBottom: 18 }}>
-            <label style={{ fontSize: 10, color: "#475569", display: "block", marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>
-              Platform
-            </label>
+            <label style={{ fontSize: 10, color: "#475569", display: "block", marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>Platform</label>
             <div style={{ display: "flex", gap: 8 }}>
               {PLATFORMS.map(p => (
                 <button key={p.id} onClick={() => setSelectedPlatform(p.id)} disabled={running}
@@ -377,11 +331,8 @@ export default function ContentOS() {
             </div>
           </div>
 
-          {/* Mode */}
           <div style={{ marginBottom: 18 }}>
-            <label style={{ fontSize: 10, color: "#475569", display: "block", marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>
-              Mode
-            </label>
+            <label style={{ fontSize: 10, color: "#475569", display: "block", marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>Mode</label>
             <div style={{ display: "flex", gap: 8 }}>
               {MODES.map(m => (
                 <button key={m.id} onClick={() => setSelectedMode(m.id)} disabled={running}
@@ -399,12 +350,9 @@ export default function ContentOS() {
             </div>
           </div>
 
-          {/* Topic Input */}
           {selectedMode === "topic" && (
             <div style={{ marginBottom: 4 }}>
-              <label style={{ fontSize: 10, color: "#475569", display: "block", marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>
-                Topic Idea
-              </label>
+              <label style={{ fontSize: 10, color: "#475569", display: "block", marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>Topic Idea</label>
               <input
                 value={topic}
                 onChange={e => setTopic(e.target.value)}
