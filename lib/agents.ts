@@ -43,7 +43,7 @@ async function callClaude(system: string, user: string): Promise<string> {
       "anthropic-version": "2023-06-01",
     },
     body: JSON.stringify({
-      model: "claude-haiku-4-5-20251001",
+      model: "claude-sonnet-4-5",
       max_tokens: 1500,
       system,
       messages: [{ role: "user", content: user }],
@@ -109,15 +109,16 @@ export async function runContentPipeline(
     "Draft: " + draft + "\n\nPlatform: " + platform + "\n\nPolish this. Stronger hook. Better CTA. Return ONLY raw content. No markdown headers. No bold or italic. Plain text only." + (platform === "instagram" ? " " + editorInstruction : "")
   );
 
-  // Agent 5: Video Script Optimizer
-  const videoScriptPrompt = language === "hindi"
-    ? "Clean this Hindi/Hinglish video script for AI avatar: " + final + "\n\nRules:\n- Remove hashtags and emojis\n- Keep [PAUSE] markers\n- Keep Hindi/Hinglish mix natural\n- Short punchy sentences\n- End with CTA mentioning getinfradesk.com\n- Max 200 words\n\nReturn clean script only."
-    : "Clean this English video script for AI avatar: " + final + "\n\nRules:\n- Remove hashtags and emojis\n- Keep [PAUSE] markers\n- Natural conversational English\n- Short punchy sentences\n- End with CTA mentioning getinfradesk.com\n- Max 200 words\n\nReturn clean script only.";
+  // Agent 5: Video Script Optimizer — fully language-aware
+  const videoScriptSystem = language === "hindi"
+    ? "Tum ek Video Script Optimizer ho. Hindi/Hinglish scripts ko AI avatar ke liye clean karo. Sirf Hinglish mein likho — Hindi words use karo jaise 'dekho', 'bhai', 'samjho', 'toh'. Technical terms English mein rakhna. Max 200 words. Natural conversational Hinglish speech."
+    : "You are a Video Script Optimizer. Clean English scripts for AI avatar. Natural conversational English speech. Max 200 words. Keep it punchy and founder-like.";
 
-  const videoScript = await callClaude(
-    "You are a Video Script Optimizer. Clean scripts for AI avatar. Natural conversational speech. Max 200 words.",
-    videoScriptPrompt
-  );
+  const videoScriptPrompt = language === "hindi"
+    ? "Is Hindi/Hinglish script ko AI avatar ke liye clean karo:\n\n" + final + "\n\nRules:\n- Hashtags aur emojis hata do\n- [PAUSE] markers rakho\n- Hindi/Hinglish mix natural rakho\n- Chhote punchy sentences\n- End mein CTA: getinfradesk.com\n- Max 200 words\n\nSirf clean script return karo."
+    : "Clean this English video script for AI avatar:\n\n" + final + "\n\nRules:\n- Remove hashtags and emojis\n- Keep [PAUSE] markers\n- Natural conversational English\n- Short punchy sentences\n- End with CTA: getinfradesk.com\n- Max 200 words\n\nReturn clean script only.";
+
+  const videoScript = await callClaude(videoScriptSystem, videoScriptPrompt);
 
   return { research, strategy, draft, final, videoScript };
 }
