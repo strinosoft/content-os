@@ -50,6 +50,7 @@ export default function ContentOS() {
   const [finalContent, setFinalContent] = useState("");
   const [videoScript, setVideoScript] = useState("");
   const [videoUrl, setVideoUrl] = useState("");
+  const [manualVideoUrl, setManualVideoUrl] = useState("");
   const [generatingVideo, setGeneratingVideo] = useState(false);
   const [videoLanguage, setVideoLanguage] = useState<"hindi" | "english">("hindi");
   const [posting, setPosting] = useState(false);
@@ -71,12 +72,13 @@ export default function ContentOS() {
     return () => window.removeEventListener("message", handler);
   }, []);
 
-  // Reset content when language toggles — forces fresh generation
+  // Reset content when language toggles
   useEffect(() => {
     if (selectedPlatform === "instagram") {
       setFinalContent("");
       setVideoScript("");
       setVideoUrl("");
+      setManualVideoUrl("");
       setPostStatus("idle");
       setAgentOutputs({});
       setAgentStatus({ research: "idle", strategy: "idle", writer: "idle", editor: "idle" });
@@ -112,6 +114,7 @@ export default function ContentOS() {
     setFinalContent("");
     setVideoScript("");
     setVideoUrl("");
+    setManualVideoUrl("");
     setPostStatus("idle");
     setAgentOutputs({});
     setAgentStatus({ research: "idle", strategy: "idle", writer: "idle", editor: "idle" });
@@ -196,6 +199,9 @@ export default function ContentOS() {
     setGeneratingVideo(false);
   };
 
+  // Use manual URL if set, else auto-generated URL
+  const activeVideoUrl = manualVideoUrl || videoUrl;
+
   const handlePost = async () => {
     if (!finalContent) return;
     setPosting(true);
@@ -222,11 +228,11 @@ export default function ContentOS() {
         if (data.success) setPostStatus("success");
         else throw new Error(data.error);
       } else if (selectedPlatform === "instagram") {
-        if (!videoUrl) { setError("Pehle video generate karo!"); setPosting(false); return; }
+        if (!activeVideoUrl) { setError("Pehle video generate karo ya URL paste karo!"); setPosting(false); return; }
         const res = await fetch("/api/post/instagram", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ caption: finalContent, videoUrl }),
+          body: JSON.stringify({ caption: finalContent, videoUrl: activeVideoUrl }),
         });
         const data = await res.json();
         if (data.success) setPostStatus("success");
@@ -365,7 +371,7 @@ export default function ContentOS() {
             </div>
           </div>
 
-          {/* Language Toggle — Instagram only, inside controls */}
+          {/* Language Toggle — Instagram only */}
           {selectedPlatform === "instagram" && (
             <div style={{ marginBottom: selectedMode === "topic" ? 18 : 0 }}>
               <label style={{ fontSize: 10, color: "#475569", display: "block", marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>
@@ -537,10 +543,11 @@ export default function ContentOS() {
                   border: "none", color: "#fff",
                   display: "flex", alignItems: "center", gap: 6,
                 }}>
-                {generatingVideo ? <><Spinner /> Generating... (2-5 min)</> : "🎬 Generate Video"}
+                {generatingVideo ? <><Spinner /> Generating... (2-5 min)</> : "🎬 Auto Generate"}
               </button>
             </div>
 
+            {/* Video Script */}
             {videoScript && (
               <div style={{ marginBottom: 14 }}>
                 <p style={{ fontSize: 10, color: "#475569", marginBottom: 6, textTransform: "uppercase", letterSpacing: 1 }}>Video Script</p>
@@ -550,6 +557,49 @@ export default function ContentOS() {
               </div>
             )}
 
+            {/* Manual Video URL Input */}
+            {!activeVideoUrl && (
+              <div style={{ marginBottom: 14 }}>
+                <p style={{ fontSize: 10, color: "#475569", marginBottom: 6, textTransform: "uppercase", letterSpacing: 1 }}>
+                  Ya Manual Video URL Paste Karo
+                </p>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <input
+                    value={manualVideoUrl}
+                    onChange={e => setManualVideoUrl(e.target.value)}
+                    placeholder="https://heygen-download-url.mp4 ya S3 URL..."
+                    style={{
+                      flex: 1, background: "#080810", border: "1px solid #1a1a2e",
+                      borderRadius: 8, padding: "9px 12px", color: "#e2e8f0",
+                      fontSize: 11, fontFamily: "inherit", transition: "border-color 0.2s",
+                    }}
+                  />
+                  {manualVideoUrl && (
+                    <button
+                      onClick={() => setManualVideoUrl("")}
+                      style={{ padding: "9px 12px", borderRadius: 8, fontSize: 11, background: "#1c0000", border: "1px solid #7f1d1d", color: "#fca5a5" }}>
+                      Clear
+                    </button>
+                  )}
+                </div>
+                <p style={{ fontSize: 10, color: "#334155", marginTop: 4 }}>
+                  HeyGen Studio se manually download karo → URL paste karo → Post karo
+                </p>
+              </div>
+            )}
+
+            {/* Active Video URL indicator */}
+            {activeVideoUrl && !videoUrl && (
+              <div style={{ marginBottom: 14, padding: "8px 12px", background: "#0a1a0a", borderRadius: 7, border: "1px solid #16a34a", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <p style={{ fontSize: 11, color: "#4ade80" }}>✅ Manual video URL set hai</p>
+                <button onClick={() => setManualVideoUrl("")}
+                  style={{ fontSize: 10, color: "#71717a", background: "none", border: "none", cursor: "pointer" }}>
+                  Remove
+                </button>
+              </div>
+            )}
+
+            {/* Auto-generated video preview */}
             {videoUrl && (
               <div style={{ marginTop: 14 }}>
                 <p style={{ fontSize: 10, color: "#475569", marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>Preview</p>
