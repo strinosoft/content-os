@@ -8,6 +8,8 @@ const NICHES = [
   { id: "motivation", label: "🧠 Motivation", color: "#8b5cf6" },
   { id: "ai", label: "🤖 AI Tools", color: "#06b6d4" },
   { id: "startup", label: "📈 Startup", color: "#f59e0b" },
+  { id: "founder_journey", label: "🏗️ Founder Journey", color: "#ec4899" },
+  { id: "hot_take", label: "🔥 Hot Take", color: "#ef4444" },
 ];
 
 const PLATFORMS = [

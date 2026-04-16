@@ -20,16 +20,28 @@ const NICHES = {
     brand: "Motivational content creator",
   },
   ai: {
-    name: "AI Tools / Tech",
-    audience: "Founders, developers, tech enthusiasts",
-    tone: "curious, forward-thinking, practical",
-    brand: "AI tools educator",
+    name: "AI Tools / Tech Simplified",
+    audience: "Founders, developers, non-technical business owners",
+    tone: "curious, practical, demystifying — explain like talking to a smart friend",
+    brand: "Praveen Bhagat - Founder using AI to build InfraDesk (getinfradesk.com)",
   },
   startup: {
     name: "Startup / Business",
     audience: "Indian founders, entrepreneurs",
     tone: "raw, honest, builder mindset",
     brand: "Startup founder sharing journey",
+  },
+  founder_journey: {
+    name: "Founder Journey / Building in Public",
+    audience: "Indian founders, aspiring entrepreneurs, startup community",
+    tone: "raw, honest, vulnerable, real — no corporate filter. Share wins, losses, doubts, learnings",
+    brand: "Praveen Bhagat - Solo founder building InfraDesk from Pune. 12+ years AWS experience. Building in public.",
+  },
+  hot_take: {
+    name: "Hot Takes / Opinions",
+    audience: "Indian startup ecosystem, CTOs, VCs, founders",
+    tone: "bold, controversial, direct, no filter — state strong opinions confidently",
+    brand: "Praveen Bhagat - 12+ years AWS experience. Founder. Calls out BS in Indian startup ecosystem.",
   },
 };
 
@@ -85,8 +97,8 @@ export async function runContentPipeline(
 
   // Agent 3: Writer — language-aware Instagram instructions
   const instagramInstruction = language === "hindi"
-    ? "60-90 second spoken script in Hindi (Hinglish style). Use Hindi words naturally: 'dekho bhai', 'samjho', 'paise bachao', 'kyunki', 'toh', 'matlab', 'suno'. Keep technical terms in English (AWS, EC2, cloud, cost). Short punchy sentences. Add [PAUSE] after key points. Start with a strong Hindi hook like 'Dekho bhai...' or 'Suno ek baat...'."
-    : "60-90 second spoken script in English. Conversational founder tone, punchy sentences. Technical terms explained simply. Add [PAUSE] after key points. Strong hook. Sound like a founder talking directly to peers.";
+    ? "60-90 second spoken script in Hindi (Hinglish style). Use Hindi words naturally: 'dekho bhai', 'samjho', 'paise bachao', 'kyunki', 'toh', 'matlab', 'suno'. Keep technical terms in English (AWS, EC2, cloud, cost). Short punchy sentences. No [PAUSE] markers. Start with a strong Hindi hook like 'Dekho bhai...' or 'Suno ek baat...'."
+    : "60-90 second spoken script in English. Conversational founder tone, punchy sentences. Technical terms explained simply. No [PAUSE] markers. Strong hook. Sound like a founder talking directly to peers.";
 
   const platformInstructions: Record<string, string> = {
     linkedin: "150-250 words, paragraph format, 2-3 emojis max, strong hook first line, plain text only no markdown, end with question or CTA",
@@ -101,8 +113,8 @@ export async function runContentPipeline(
 
   // Agent 4: Editor
   const editorInstruction = language === "hindi"
-    ? "Keep as natural Hindi/Hinglish spoken script. Strong hook. Better CTA. Remove AI-sounding phrases."
-    : "Keep as natural English spoken script. Strong hook. Better CTA. Remove AI-sounding phrases.";
+    ? "Keep as natural Hindi/Hinglish spoken script. Strong hook. Better CTA. Remove AI-sounding phrases. Remove any [PAUSE] markers."
+    : "Keep as natural English spoken script. Strong hook. Better CTA. Remove AI-sounding phrases. Remove any [PAUSE] markers.";
 
   const final = await callClaude(
     "You are an Editor Agent. Make content viral-ready. Sharpen hooks. Remove weak phrases. Sound authentic, not AI-generated. Return final content only.",
@@ -111,12 +123,12 @@ export async function runContentPipeline(
 
   // Agent 5: Video Script Optimizer — fully language-aware
   const videoScriptSystem = language === "hindi"
-    ? "Tum ek Video Script Optimizer ho. Hindi/Hinglish scripts ko AI avatar ke liye clean karo. Sirf Hinglish mein likho — Hindi words use karo jaise 'dekho', 'bhai', 'samjho', 'toh'. Technical terms English mein rakhna. Max 200 words. Natural conversational Hinglish speech."
-    : "You are a Video Script Optimizer. Clean English scripts for AI avatar. Natural conversational English speech. Max 200 words. Keep it punchy and founder-like.";
+    ? "Tum ek Video Script Optimizer ho. Hindi/Hinglish scripts ko AI avatar ke liye clean karo. Sirf Hinglish mein likho — Hindi words use karo jaise 'dekho', 'bhai', 'samjho', 'toh'. Technical terms English mein rakhna. Max 200 words. Natural conversational Hinglish speech. Koi [PAUSE] markers mat daalo."
+    : "You are a Video Script Optimizer. Clean English scripts for AI avatar. Natural conversational English speech. Max 200 words. Keep it punchy and founder-like. No [PAUSE] markers.";
 
   const videoScriptPrompt = language === "hindi"
-    ? "Is Hindi/Hinglish script ko AI avatar ke liye clean karo:\n\n" + final + "\n\nRules:\n- Hashtags aur emojis hata do\n- [PAUSE] markers rakho\n- Hindi/Hinglish mix natural rakho\n- Chhote punchy sentences\n- End mein CTA: getinfradesk.com\n- Max 200 words\n\nSirf clean script return karo."
-    : "Clean this English video script for AI avatar:\n\n" + final + "\n\nRules:\n- Remove hashtags and emojis\n- Keep [PAUSE] markers\n- Natural conversational English\n- Short punchy sentences\n- End with CTA: getinfradesk.com\n- Max 200 words\n\nReturn clean script only.";
+    ? "Is Hindi/Hinglish script ko AI avatar ke liye clean karo:\n\n" + final + "\n\nRules:\n- Hashtags aur emojis hata do\n- [PAUSE] markers bhi hata do\n- Hindi/Hinglish mix natural rakho\n- Chhote punchy sentences\n- End mein CTA: getinfradesk dot com\n- Max 200 words\n\nSirf clean script return karo."
+    : "Clean this English video script for AI avatar:\n\n" + final + "\n\nRules:\n- Remove hashtags and emojis\n- Remove any [PAUSE] markers\n- Natural conversational English\n- Short punchy sentences\n- End with CTA: getinfradesk dot com\n- Max 200 words\n\nReturn clean script only.";
 
   const videoScript = await callClaude(videoScriptSystem, videoScriptPrompt);
 
