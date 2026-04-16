@@ -30,6 +30,17 @@ const AGENTS = [
   { id: "editor", label: "Editor", icon: "✅" },
 ];
 
+// Content Calendar — day wise plan
+const CALENDAR = [
+  { day: "Mon", label: "Monday", niche: "aws", platform: "linkedin", icon: "☁️", desc: "AWS cost tip", color: "#f97316" },
+  { day: "Tue", label: "Tuesday", niche: "founder_journey", platform: "instagram", icon: "🏗️", desc: "Founder story reel", color: "#ec4899" },
+  { day: "Wed", label: "Wednesday", niche: "hot_take", platform: "linkedin", icon: "🔥", desc: "Hot take post", color: "#ef4444" },
+  { day: "Thu", label: "Thursday", niche: "ai", platform: "instagram", icon: "🤖", desc: "AI tools reel", color: "#06b6d4" },
+  { day: "Fri", label: "Friday", niche: "aws", platform: "instagram", icon: "☁️", desc: "AWS reel (InfraDesk)", color: "#f97316" },
+  { day: "Sat", label: "Saturday", niche: "startup", platform: "linkedin", icon: "📈", desc: "Startup insight", color: "#f59e0b" },
+  { day: "Sun", label: "Sunday", niche: "motivation", platform: "instagram", icon: "🧠", desc: "Motivation reel", color: "#8b5cf6" },
+];
+
 function Spinner() {
   return (
     <svg style={{ animation: "spin 1s linear infinite", width: 14, height: 14 }} viewBox="0 0 24 24" fill="none">
@@ -64,6 +75,11 @@ export default function ContentOS() {
   const LINKEDIN_CLIENT_ID = process.env.NEXT_PUBLIC_LINKEDIN_CLIENT_ID;
   const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
+  // Get today's day
+  const todayIndex = new Date().getDay(); // 0=Sun, 1=Mon...
+  const calendarIndex = todayIndex === 0 ? 6 : todayIndex - 1; // map to Mon=0..Sun=6
+  const todayPlan = CALENDAR[calendarIndex];
+
   useEffect(() => {
     const token = sessionStorage.getItem("li_access_token");
     if (token) setLiToken(token);
@@ -74,7 +90,6 @@ export default function ContentOS() {
     return () => window.removeEventListener("message", handler);
   }, []);
 
-  // Reset content when language toggles
   useEffect(() => {
     if (selectedPlatform === "instagram") {
       setFinalContent("");
@@ -108,6 +123,18 @@ export default function ContentOS() {
     const left = window.screenX + (window.outerWidth - w) / 2;
     const top = window.screenY + (window.outerHeight - h) / 2;
     window.open(url, "linkedin_oauth", `width=${w},height=${h},left=${left},top=${top}`);
+  };
+
+  const loadTodaysPlan = () => {
+    setSelectedNiche(todayPlan.niche);
+    setSelectedPlatform(todayPlan.platform);
+    setFinalContent("");
+    setVideoScript("");
+    setVideoUrl("");
+    setManualVideoUrl("");
+    setPostStatus("idle");
+    setAgentOutputs({});
+    setAgentStatus({ research: "idle", strategy: "idle", writer: "idle", editor: "idle" });
   };
 
   const handleGenerate = async () => {
@@ -159,7 +186,6 @@ export default function ContentOS() {
     setGeneratingVideo(true);
     setError("");
     let finalVideoUrl = "";
-
     try {
       const res = await fetch("/api/video/generate", {
         method: "POST",
@@ -168,10 +194,8 @@ export default function ContentOS() {
       });
       const data = await res.json();
       if (!data.videoId) throw new Error(data.error || "Failed to start video");
-
       const videoId = data.videoId;
       let attempts = 0;
-
       while (attempts < 40) {
         await new Promise(r => setTimeout(r, 15000));
         const statusRes = await fetch("/api/video/generate", {
@@ -180,8 +204,6 @@ export default function ContentOS() {
           body: JSON.stringify({ action: "check", videoId }),
         });
         const statusData = await statusRes.json();
-        console.log("Poll attempt", attempts, statusData.status);
-
         if (statusData.status === "completed" && statusData.videoUrl) {
           finalVideoUrl = statusData.videoUrl;
           setVideoUrl(statusData.videoUrl);
@@ -191,17 +213,13 @@ export default function ContentOS() {
         }
         attempts++;
       }
-
       if (!finalVideoUrl) throw new Error("Video took too long - check HeyGen dashboard");
-
     } catch (e: any) {
       setError("Video generation failed: " + e.message);
     }
-
     setGeneratingVideo(false);
   };
 
-  // Use manual URL if set, else auto-generated URL
   const activeVideoUrl = manualVideoUrl || videoUrl;
 
   const handlePost = async () => {
@@ -211,34 +229,19 @@ export default function ContentOS() {
     setError("");
     try {
       if (selectedPlatform === "twitter") {
-        const res = await fetch("/api/post/twitter", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ content: finalContent }),
-        });
+        const res = await fetch("/api/post/twitter", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ content: finalContent }) });
         const data = await res.json();
-        if (data.success) setPostStatus("success");
-        else throw new Error(data.error);
+        if (data.success) setPostStatus("success"); else throw new Error(data.error);
       } else if (selectedPlatform === "linkedin") {
         if (!liToken) { connectLinkedIn(); setPosting(false); return; }
-        const res = await fetch("/api/linkedin/post", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ content: finalContent, access_token: liToken }),
-        });
+        const res = await fetch("/api/linkedin/post", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ content: finalContent, access_token: liToken }) });
         const data = await res.json();
-        if (data.success) setPostStatus("success");
-        else throw new Error(data.error);
+        if (data.success) setPostStatus("success"); else throw new Error(data.error);
       } else if (selectedPlatform === "instagram") {
         if (!activeVideoUrl) { setError("Pehle video generate karo ya URL paste karo!"); setPosting(false); return; }
-        const res = await fetch("/api/post/instagram", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ caption: finalContent, videoUrl: activeVideoUrl }),
-        });
+        const res = await fetch("/api/post/instagram", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ caption: finalContent, videoUrl: activeVideoUrl }) });
         const data = await res.json();
-        if (data.success) setPostStatus("success");
-        else throw new Error(data.error);
+        if (data.success) setPostStatus("success"); else throw new Error(data.error);
       }
     } catch (e: any) {
       setError(e.message);
@@ -273,13 +276,57 @@ export default function ContentOS() {
       <div style={{ maxWidth: 800, margin: "0 auto" }}>
 
         {/* Header */}
-        <div style={{ marginBottom: 28 }}>
+        <div style={{ marginBottom: 20 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
             <span>⚡</span>
             <h1 style={{ fontSize: 20, fontWeight: 700, color: "#fff", letterSpacing: "-0.5px" }}>Content OS</h1>
             <span style={{ background: "#1c1917", border: "1px solid #292524", borderRadius: 5, padding: "2px 8px", fontSize: 10, color: "#a8a29e" }}>by Strinosoft</span>
           </div>
           <p style={{ color: "#475569", fontSize: 12 }}>Niche select karo → Content generate karo → Auto-post karo</p>
+        </div>
+
+        {/* Content Calendar */}
+        <div style={{ background: "#0d0d1a", border: "1px solid #1a1a2e", borderRadius: 12, padding: 16, marginBottom: 16 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+            <label style={{ fontSize: 10, color: "#475569", textTransform: "uppercase", letterSpacing: 1 }}>📅 Weekly Content Calendar</label>
+            <button onClick={loadTodaysPlan}
+              style={{
+                padding: "5px 12px", borderRadius: 6, fontSize: 11, fontWeight: 700,
+                background: `${todayPlan.color}20`, border: `1px solid ${todayPlan.color}`,
+                color: todayPlan.color,
+              }}>
+              Load Today's Plan ✨
+            </button>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 6 }}>
+            {CALENDAR.map((item, idx) => {
+              const isToday = idx === calendarIndex;
+              return (
+                <button
+                  key={item.day}
+                  onClick={() => { setSelectedNiche(item.niche); setSelectedPlatform(item.platform); }}
+                  style={{
+                    padding: "8px 4px", borderRadius: 8, fontSize: 10, textAlign: "center",
+                    border: isToday ? `1px solid ${item.color}` : "1px solid #1a1a2e",
+                    background: isToday ? `${item.color}20` : "#080810",
+                    color: isToday ? item.color : "#475569",
+                    cursor: "pointer", transition: "all 0.2s",
+                  }}>
+                  <div style={{ fontSize: 16, marginBottom: 3 }}>{item.icon}</div>
+                  <div style={{ fontWeight: isToday ? 700 : 400, marginBottom: 2 }}>{item.day}</div>
+                  <div style={{ fontSize: 9, color: isToday ? item.color : "#334155", lineHeight: 1.3 }}>{item.desc}</div>
+                  <div style={{ fontSize: 9, marginTop: 3, color: "#475569" }}>
+                    {item.platform === "linkedin" ? "in" : item.platform === "instagram" ? "▶" : "𝕏"}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+          <div style={{ marginTop: 10, padding: "8px 10px", background: "#080810", borderRadius: 7, border: `1px solid ${todayPlan.color}30` }}>
+            <p style={{ fontSize: 11, color: todayPlan.color }}>
+              🎯 Aaj ka plan: <strong>{todayPlan.label}</strong> — {todayPlan.icon} {todayPlan.desc} on {todayPlan.platform === "linkedin" ? "LinkedIn" : todayPlan.platform === "instagram" ? "Instagram" : "Twitter"}
+            </p>
+          </div>
         </div>
 
         {/* LinkedIn Connect */}
@@ -376,9 +423,7 @@ export default function ContentOS() {
           {/* Language Toggle — Instagram only */}
           {selectedPlatform === "instagram" && (
             <div style={{ marginBottom: selectedMode === "topic" ? 18 : 0 }}>
-              <label style={{ fontSize: 10, color: "#475569", display: "block", marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>
-                Video Language
-              </label>
+              <label style={{ fontSize: 10, color: "#475569", display: "block", marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>Video Language</label>
               <div style={{ display: "flex", gap: 8 }}>
                 <button onClick={() => setVideoLanguage("hindi")} disabled={running}
                   style={{
@@ -387,9 +432,7 @@ export default function ContentOS() {
                     background: videoLanguage === "hindi" ? "#1c0900" : "#080810",
                     color: videoLanguage === "hindi" ? "#f97316" : "#475569",
                     fontWeight: videoLanguage === "hindi" ? 700 : 400,
-                  }}>
-                  🇮🇳 Hindi — ElevenLabs voice
-                </button>
+                  }}>🇮🇳 Hindi — ElevenLabs voice</button>
                 <button onClick={() => setVideoLanguage("english")} disabled={running}
                   style={{
                     padding: "7px 16px", borderRadius: 8, fontSize: 12,
@@ -397,14 +440,10 @@ export default function ContentOS() {
                     background: videoLanguage === "english" ? "#0a1a1a" : "#080810",
                     color: videoLanguage === "english" ? "#06b6d4" : "#475569",
                     fontWeight: videoLanguage === "english" ? 700 : 400,
-                  }}>
-                  🇬🇧 English — HeyGen voice
-                </button>
+                  }}>🇬🇧 English — HeyGen voice</button>
               </div>
               <p style={{ fontSize: 10, color: "#334155", marginTop: 6 }}>
-                {videoLanguage === "hindi"
-                  ? "Hindi script + tumhari ElevenLabs voice"
-                  : "English script + tumhari HeyGen voice"}
+                {videoLanguage === "hindi" ? "Hindi script + tumhari ElevenLabs voice" : "English script + tumhari HeyGen voice"}
               </p>
             </div>
           )}
@@ -515,11 +554,9 @@ export default function ContentOS() {
                 </button>
               </div>
             </div>
-
             <textarea value={finalContent} onChange={e => setFinalContent(e.target.value)} rows={10}
               style={{ width: "100%", background: "#080810", border: "1px solid #1a1a2e", borderRadius: 8, padding: 14, color: "#d4d4d8", fontSize: 12, lineHeight: 1.8, resize: "vertical", transition: "border-color 0.2s" }}
             />
-
             {postStatus === "success" && (
               <div style={{ marginTop: 12, padding: "10px 14px", background: "#0a1a0a", borderRadius: 7, border: "1px solid #14532d" }}>
                 <p style={{ fontSize: 12, color: "#4ade80" }}>🎉 Successfully posted!</p>
@@ -549,7 +586,6 @@ export default function ContentOS() {
               </button>
             </div>
 
-            {/* Video Script */}
             {videoScript && (
               <div style={{ marginBottom: 14 }}>
                 <p style={{ fontSize: 10, color: "#475569", marginBottom: 6, textTransform: "uppercase", letterSpacing: 1 }}>Video Script</p>
@@ -559,57 +595,39 @@ export default function ContentOS() {
               </div>
             )}
 
-            {/* Manual Video URL Input */}
             {!activeVideoUrl && (
               <div style={{ marginBottom: 14 }}>
-                <p style={{ fontSize: 10, color: "#475569", marginBottom: 6, textTransform: "uppercase", letterSpacing: 1 }}>
-                  Ya Manual Video URL Paste Karo
-                </p>
+                <p style={{ fontSize: 10, color: "#475569", marginBottom: 6, textTransform: "uppercase", letterSpacing: 1 }}>Ya Manual Video URL Paste Karo</p>
                 <div style={{ display: "flex", gap: 8 }}>
-                  <input
-                    value={manualVideoUrl}
-                    onChange={e => setManualVideoUrl(e.target.value)}
+                  <input value={manualVideoUrl} onChange={e => setManualVideoUrl(e.target.value)}
                     placeholder="https://heygen-download-url.mp4 ya S3 URL..."
-                    style={{
-                      flex: 1, background: "#080810", border: "1px solid #1a1a2e",
-                      borderRadius: 8, padding: "9px 12px", color: "#e2e8f0",
-                      fontSize: 11, fontFamily: "inherit", transition: "border-color 0.2s",
-                    }}
+                    style={{ flex: 1, background: "#080810", border: "1px solid #1a1a2e", borderRadius: 8, padding: "9px 12px", color: "#e2e8f0", fontSize: 11, fontFamily: "inherit", transition: "border-color 0.2s" }}
                   />
                   {manualVideoUrl && (
-                    <button
-                      onClick={() => setManualVideoUrl("")}
+                    <button onClick={() => setManualVideoUrl("")}
                       style={{ padding: "9px 12px", borderRadius: 8, fontSize: 11, background: "#1c0000", border: "1px solid #7f1d1d", color: "#fca5a5" }}>
                       Clear
                     </button>
                   )}
                 </div>
-                <p style={{ fontSize: 10, color: "#334155", marginTop: 4 }}>
-                  HeyGen Studio se manually download karo → URL paste karo → Post karo
-                </p>
+                <p style={{ fontSize: 10, color: "#334155", marginTop: 4 }}>HeyGen Studio se manually download karo → URL paste karo → Post karo</p>
               </div>
             )}
 
-            {/* Active Video URL indicator */}
             {activeVideoUrl && !videoUrl && (
               <div style={{ marginBottom: 14, padding: "8px 12px", background: "#0a1a0a", borderRadius: 7, border: "1px solid #16a34a", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <p style={{ fontSize: 11, color: "#4ade80" }}>✅ Manual video URL set hai</p>
-                <button onClick={() => setManualVideoUrl("")}
-                  style={{ fontSize: 10, color: "#71717a", background: "none", border: "none", cursor: "pointer" }}>
-                  Remove
-                </button>
+                <button onClick={() => setManualVideoUrl("")} style={{ fontSize: 10, color: "#71717a", background: "none", border: "none", cursor: "pointer" }}>Remove</button>
               </div>
             )}
 
-            {/* Auto-generated video preview */}
             {videoUrl && (
               <div style={{ marginTop: 14 }}>
                 <p style={{ fontSize: 10, color: "#475569", marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>Preview</p>
                 <video controls style={{ width: "100%", borderRadius: 8, maxHeight: 400 }}>
                   <source src={videoUrl} type="video/mp4" />
                 </video>
-                <a href={videoUrl} target="_blank" rel="noopener noreferrer"
-                  style={{ display: "inline-block", marginTop: 10, fontSize: 11, color: "#8b5cf6" }}>
+                <a href={videoUrl} target="_blank" rel="noopener noreferrer" style={{ display: "inline-block", marginTop: 10, fontSize: 11, color: "#8b5cf6" }}>
                   S3 URL copy karo →
                 </a>
               </div>
