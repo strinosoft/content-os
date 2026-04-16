@@ -99,6 +99,7 @@ export async function checkHeyGenVideoStatus(videoId: string): Promise<{
 
   const statusData = await statusRes.json();
   console.log("📊 HeyGen status:", statusData.data?.status);
+  console.log("📊 HeyGen full data:", JSON.stringify(statusData.data)); 
 
   return {
     status: statusData.data?.status || "unknown",
